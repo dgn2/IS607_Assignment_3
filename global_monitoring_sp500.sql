@@ -4,6 +4,8 @@ DROP TABLE IF EXISTS sector;
 DROP TABLE IF EXISTS sub_industry;
 DROP TABLE IF EXISTS instrument;
 DROP TABLE IF EXISTS sp500_constituents_by_sector;
+DROP TABLE IF EXISTS trades;
+DROP TABLE IF EXISTS sp500_trades_by_sector;
 
 --Create the instrument table
 CREATE TABLE sp500
@@ -1186,6 +1188,27 @@ INSERT INTO instrument ( instrument_id , instrument_ticker, instrument_name, cik
 --Fetch the first 5 records to display
 SELECT * FROM instrument LIMIT 5;
 
+--Create trades table
+CREATE TABLE trades
+(
+dbUpdateTimestamp TIMESTAMP DEFAULT(current_timestamp), 
+trade_id SERIAL,
+instrument_id INT NOT NULL,
+trade_datetime TIMESTAMP NOT NULL,
+trade_size INT NOT NULL,
+PRIMARY KEY ( trade_id ) 
+);
+
+--Load trades
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 1,'2014-09-28 00:11:09',10000);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 1,'2014-09-28 00:11:12',400);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 1,'2014-09-28 00:11:12',500);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 1,'2014-09-28 00:11:13',100);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 498,'2014-09-28 00:00:00',50);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 498,'2014-09-28 00:01:09',400);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 498,'2014-09-28 00:01:11',500);
+INSERT INTO trades (instrument_id,trade_datetime,trade_size) VALUES ( 498,'2014-09-28 00:01:12',100);
+
 --Create constituents by sector the table
 CREATE TABLE sp500_constituents_by_sector 
 (
@@ -1198,7 +1221,7 @@ cik VARCHAR(20) NOT NULL,
 PRIMARY KEY ( instrument_ticker,sector_gics,sub_industry_gics,cik ) 
 );
 
---Create the table join (one-to-many) and (many-to-many)
+--Create the table join
 INSERT INTO sp500_constituents_by_sector (instrument_ticker,instrument_name,sector_gics,sub_industry_gics,cik)
 SELECT c.instrument_ticker,c.instrument_name,s.sector_gics,i.sub_industry_gics,c.cik FROM sp500 sp
 INNER JOIN (SELECT * FROM sector) s ON sp.sector_id = s.sector_id
@@ -1208,4 +1231,28 @@ INNER JOIN (SELECT * FROM instrument) c ON sp.instrument_id = c.instrument_id;
 --Select from constituents by sector
 SELECT * FROM sp500_constituents_by_sector;
 
---Create the table join (many-to-many
+--Create constituents by sector the table
+CREATE TABLE sp500_trades_by_sector 
+(
+dbUpdateTimestamp TIMESTAMP DEFAULT(current_timestamp), 
+trade_id INT NOT NULL,
+instrument_ticker VARCHAR(30) NOT NULL, 
+instrument_name VARCHAR(60) NOT NULL, 
+sector_gics VARCHAR(40) NOT NULL, 
+sub_industry_gics VARCHAR(60) NOT NULL, 
+cik VARCHAR(20) NOT NULL,
+trade_datetime TIMESTAMP NOT NULL,
+trade_size INT NOT NULL,
+PRIMARY KEY ( trade_id,instrument_ticker,sector_gics,sub_industry_gics,cik,trade_datetime,trade_size ) 
+);
+
+--Create the table join
+INSERT INTO sp500_trades_by_sector (trade_id,instrument_ticker,instrument_name,sector_gics,sub_industry_gics,cik,trade_datetime,trade_size)
+SELECT t.trade_id,c.instrument_ticker,c.instrument_name,s.sector_gics,i.sub_industry_gics,c.cik,t.trade_datetime,t.trade_size FROM sp500 sp
+INNER JOIN (SELECT * FROM sector) s ON sp.sector_id = s.sector_id
+INNER JOIN (SELECT * FROM sub_industry) i ON sp.sub_industry_id = i.sub_industry_id
+INNER JOIN (SELECT * FROM instrument) c ON sp.instrument_id = c.instrument_id
+INNER JOIN (SELECT * FROM trades) t ON sp.instrument_id = t.instrument_id;
+
+--Select from trades by sector
+SELECT * FROM sp500_trades_by_sector;
